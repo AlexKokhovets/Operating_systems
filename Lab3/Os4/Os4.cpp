@@ -1,6 +1,8 @@
 ﻿#include <windows.h>
 #include <iostream>
 #include <vector>
+#include <fstream>
+#include <iterator>
 
 struct Request
 {
