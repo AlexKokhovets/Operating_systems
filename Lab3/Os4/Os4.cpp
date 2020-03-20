@@ -97,10 +97,7 @@ int main()
 	}
 
 	std::cout << "New massive: " << std::endl;
-	for (int i = 0; i < size; i++)
-	{
-		std::cout << mas.at(i) << " ";
-	}
+	std::copy(mas.begin(), mas.end(), std::ostream_iterator<int>(std::cout, std::endl));
 
 	return 0;
 }
