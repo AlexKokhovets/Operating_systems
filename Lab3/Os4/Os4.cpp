@@ -1,59 +1,82 @@
-﻿#include <windows.h>
+﻿#include <Windows.h>
 #include <iostream>
 #include <vector>
-#include <fstream>
 #include <iterator>
+#include <fstream>
 
 struct Request
 {
-	std::vector<int>* massive;
-	double answer1;
-	double answer2;
+	std::vector<int> const massive;
+	double* answer;
+
+	Request(std::vector<int> const& mas): massive(mas)
+	{}
 };
 
 DWORD WINAPI min_max(LPVOID param)
 {
 	Request* req = (Request*)param;
 
-	int min = req->massive->at(0);
+	int min = req->massive[0];
 	int max = min;
-	for (size_t i = 0; i < req->massive->size(); i++)
+	for (auto a: req->massive)
 	{
-		int tmp = req->massive->at(i);
-		if (tmp > max)
-		{
-			max = tmp;
-		}
+		if (a > max)
+			max = a;
+
 		Sleep(7);
-		if (tmp < min)
-		{
-			min = tmp;
-		}
+		if (a < min)
+			min = a;
+
 		Sleep(7);
 	}
 
-	req->answer1 = min;
-	req->answer2 = max;
-
-	std::cout << "Min: " << min << " Max: " << max << std::endl;
-
+	req->answer[0] = min;
+	req->answer[1] = max;
 	return 0;
 }
 DWORD WINAPI average(LPVOID param)
 {
 	Request* req = (Request*)param;
 
+	if (req->massive.size() == 0)
+		return 1;
+
 	int average = 0;
-	for (size_t i = 0; i < req->massive->size(); i++)
+	for (auto a: req->massive)
 	{
-		average += req->massive->at(i);
+		average += a;
 		Sleep(12);
 	}
 
-	req->answer1 = (double)average/req->massive->size();
+	req->answer[0] = (double)average/req->massive.size();
+	return 0;
+}
 
-	std::cout << "Average: " << req->answer1 << std::endl;
-
+int wait_thread_and_close_handle(HANDLE t1, HANDLE t2)
+{
+	WaitForSingleObject(t1, INFINITE);
+	WaitForSingleObject(t2, INFINITE);
+	CloseHandle(t1);
+	CloseHandle(t2);
+	return 0;
+}
+int change_minmax_to_average(std::vector<int>& mas, double min, double max, double average)
+{
+	for (auto& a : mas)
+	{
+		if (a == min || a == max)
+		{
+			a = (int)average;
+		}
+	}
+	return 0;
+}
+int print_vector(std::vector<int>& mas)
+{
+	std::cout << "New massive: ";
+	std::copy(mas.begin(), mas.end(), std::ostream_iterator<int>(std::cout, " "));
+	std::cout << std::endl;
 	return 0;
 }
 
@@ -65,41 +88,29 @@ int main()
 	std::vector<int> mas(size);
 
 	std::cout << "Enter elements of massive: ";
-
 	for (int i = 0; i < size; i++)
 	{
 		std::cin >> mas[i];
 	}
 
-	Request r1, r2;
-	r1.massive = &mas;
-	r2.massive = &mas;
+	Request r1 = Request(mas), r2 = Request(mas);
+	r1.answer = new double[1];
+	r2.answer = new double[2];
 
-	HANDLE min_max_thread, average_thread;
-	DWORD IDThread[2];
-	min_max_thread = CreateThread(NULL, 0, min_max, (LPVOID)&r1, 0, &IDThread[0]);
-	average_thread = CreateThread(NULL, 0, average, (LPVOID)&r2, 0, &IDThread[1]);
+	HANDLE min_max_thread = CreateThread(NULL, 0, min_max, (LPVOID)&r1, 0, NULL);
+	HANDLE average_thread = CreateThread(NULL, 0, average, (LPVOID)&r2, 0, NULL);
 
 	if (min_max_thread == NULL || average_thread == NULL) 
 	{
 		std::cout << GetLastError();
 		return 1;
 	}
-	WaitForSingleObject(min_max_thread, INFINITE);
-	WaitForSingleObject(average_thread, INFINITE);
-	CloseHandle(min_max_thread);
-	CloseHandle(average_thread);
+	wait_thread_and_close_handle(min_max_thread, average_thread);
 
-	for (int i = 0; i < size; i++)
-	{
-		if (mas.at(i) == r1.answer1 || mas.at(i) == r1.answer2)
-		{
-			mas.at(i) = (int)r2.answer1;
-		}
-	}
+	std::cout << "Average: " << r2.answer[0] << std::endl;
+	std::cout << "Min: " << r1.answer[0] << " Max:" << r1.answer[1] << std::endl;
 
-	std::cout << "New massive: " << std::endl;
-	std::copy(mas.begin(), mas.end(), std::ostream_iterator<int>(std::cout, std::endl));
-
+	change_minmax_to_average(mas, r1.answer[0], r1.answer[1], r2.answer[0]);
+	print_vector(mas);
 	return 0;
 }
